@@ -1,15 +1,32 @@
+// === Supabase config ===
+const SUPABASE_URL = 'https://yinsvtpftqprixmecjyl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpbnN2dHBmdHFwcml4bWVjanlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTc5MzcsImV4cCI6MjA4NjY3MzkzN30.3mYO5Kceea-K7u-4QW4UlskCnxyx4KAnFfuzcrUXimc';
+
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // === App State ===
 let currentUser = null;
 
 // === Initialization ===
-document.addEventListener('DOMContentLoaded', function() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
+document.addEventListener('DOMContentLoaded', async function() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        currentUser = user;
         showApp();
     } else {
         showAuth();
     }
+
+    // react to auth changes
+    supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+            currentUser = session.user;
+            showApp();
+        } else {
+            currentUser = null;
+            showAuth();
+        }
+    });
 });
 
 // === UI Toggle ===
@@ -57,7 +74,7 @@ function showAlert(message, type = 'success') {
 }
 
 // === Registration & Login ===
-function handleRegister(event) {
+async function handleRegister(event) {
     event.preventDefault();
 
     const firstName = document.getElementById('regFirstName').value.trim();
@@ -66,126 +83,78 @@ function handleRegister(event) {
     const password = document.getElementById('regPassword').value;
     const passwordConfirm = document.getElementById('regPasswordConfirm').value;
 
-    // Validation
     if (!firstName || !lastName || !email || !password) {
         showAlert('Заполните все поля', 'danger');
         return;
     }
+    if (password !== passwordConfirm) { showAlert('Пароли не совпадают', 'danger'); return; }
+    if (password.length < 6) { showAlert('Пароль должен быть минимум 6 символов', 'danger'); return; }
 
-    if (password !== passwordConfirm) {
-        showAlert('Пароли не совпадают', 'danger');
-        return;
-    }
-
-    if (password.length < 6) {
-        showAlert('Пароль должен быть минимум 6 символов', 'danger');
-        return;
-    }
-
-    // Check if user already exists
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.some(u => u.email === email)) {
-        showAlert('Пользователь с таким Email уже существует', 'danger');
-        return;
-    }
-
-    // Create new user
-    const newUser = {
-        id: Date.now().toString(),
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        firstName,
-        lastName,
-        bio: '',
-        createdAt: new Date().toISOString()
-    };
+        options: { data: { firstName, lastName, bio: '' } }
+    });
 
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
+    if (error) {
+        showAlert(error.message, 'danger');
+        return;
+    }
 
-    // Auto-login
-    currentUser = newUser;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-    showApp();
-    showAlert('Регистрация успешна! Добро пожаловать!', 'success');
+    // Supabase sends confirmation email depending on your project settings.
+    showAlert('Регистрация выполнена. Подтвердите Email, если требуется.', 'success');
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
-
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find(u => u.email === email && u.password === password);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { showAlert(error.message, 'danger'); return; }
 
-    if (!user) {
-        showAlert('Неверный Email или пароль', 'danger');
-        return;
-    }
-
-    currentUser = user;
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
+    currentUser = data.user;
+    showAlert(`Добро пожаловать, ${currentUser.user_metadata?.firstName || currentUser.email}!`, 'success');
     showApp();
-    showAlert(`Добро пожаловать, ${user.firstName}!`, 'success');
 }
 
-function logout() {
+async function logout() {
+    await supabase.auth.signOut();
     currentUser = null;
-    localStorage.removeItem('currentUser');
-    document.getElementById('loginEmail').value = '';
-    document.getElementById('loginPassword').value = '';
-    document.getElementById('regFirstName').value = '';
-    document.getElementById('regLastName').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regPasswordConfirm').value = '';
-    document.getElementById('preview').innerHTML = '';
-    document.getElementById('fileInput').value = '';
-    
     showAuth();
     showAlert('Вы вышли из аккаунта', 'info');
 }
 
 // === Photos Management ===
-function handleUpload(event) {
+async function handleUpload(event) {
     event.preventDefault();
-
+    if (!currentUser) { showAlert('Сначала войдите в систему', 'warning'); return; }
     const files = document.getElementById('fileInput').files;
-    if (files.length === 0) {
-        showAlert('Выберите файлы для загрузки', 'warning');
-        return;
+    if (files.length === 0) { showAlert('Выберите файлы для загрузки', 'warning'); return; }
+
+    const uploaded = [];
+    for (const file of Array.from(files)) {
+        const ext = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const path = `${currentUser.id}/${fileName}`;
+
+        const { error } = await supabase.storage.from('photos').upload(path, file, { cacheControl: '3600', upsert: false });
+        if (error) {
+            console.error('Upload error', error);
+            showAlert(`Ошибка загрузки ${file.name}: ${error.message}`, 'danger');
+            continue;
+        }
+
+        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+        uploaded.push({ fileName: file.name, url: urlData.publicUrl, path });
     }
 
-    const userPhotos = getUserPhotos();
-    let uploadedCount = 0;
-
-    Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const photo = {
-                id: Date.now().toString() + Math.random(),
-                userId: currentUser.id,
-                fileName: file.name,
-                data: e.target.result, // base64 data URL
-                uploadedAt: new Date().toISOString()
-            };
-
-            userPhotos.push(photo);
-            uploadedCount++;
-
-            if (uploadedCount === files.length) {
-                localStorage.setItem(`photos_${currentUser.id}`, JSON.stringify(userPhotos));
-                document.getElementById('fileInput').value = '';
-                document.getElementById('preview').innerHTML = '';
-                loadPhotos();
-                showAlert(`Успешно загружено ${uploadedCount} фото!`, 'success');
-            }
-        };
-        reader.readAsDataURL(file);
-    });
+    if (uploaded.length > 0) {
+        showAlert(`Успешно загружено ${uploaded.length} фото!`, 'success');
+        document.getElementById('fileInput').value = '';
+        document.getElementById('preview').innerHTML = '';
+        await loadPhotos();
+    }
 }
 
 function handleFileChange() {
@@ -204,14 +173,19 @@ function handleFileChange() {
     });
 }
 
-function getUserPhotos() {
-    return JSON.parse(localStorage.getItem(`photos_${currentUser.id}`) || '[]');
-}
-
-function loadPhotos() {
-    const photos = getUserPhotos();
+async function loadPhotos() {
+    if (!currentUser) return;
     const grid = document.getElementById('photoGrid');
-    
+
+    // list files in user's folder
+    const { data, error } = await supabase.storage.from('photos').list(currentUser.id, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+    if (error) {
+        console.error('List error', error);
+        grid.innerHTML = '<div class="col-12"><div class="alert alert-light text-center">Не удалось загрузить список фото. Убедитесь, что бакет "photos" создан и публичен.</div></div>';
+        return;
+    }
+
+    const photos = data || [];
     document.getElementById('photoCount').textContent = photos.length;
 
     if (photos.length === 0) {
@@ -219,18 +193,35 @@ function loadPhotos() {
         return;
     }
 
-    grid.innerHTML = photos.map(photo => `
-        <div class="col">
+    grid.innerHTML = '';
+    for (const file of photos) {
+        const path = `${currentUser.id}/${file.name}`;
+        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+        const publicUrl = urlData.publicUrl;
+
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = `
             <div class="card h-100 shadow-sm">
-                <img src="${photo.data}" class="card-img-top" alt="${photo.fileName}" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#imageModal" onclick="showImage('${photo.data}', '${photo.fileName}')">
+                <img src="${publicUrl}" class="card-img-top" alt="${file.name}" style="cursor:pointer;">
                 <div class="card-body">
-                    <h6 class="card-title text-truncate" title="${photo.fileName}">${photo.fileName}</h6>
-                    <p class="text-muted mb-2 small">${new Date(photo.uploadedAt).toLocaleDateString('ru-RU', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}</p>
-                    <button class="btn btn-sm btn-outline-danger w-100" onclick="deletePhoto('${photo.id}')">Удалить</button>
+                    <h6 class="card-title text-truncate" title="${file.name}">${file.name}</h6>
+                    <p class="text-muted mb-2 small">${new Date(file.created_at).toLocaleString('ru-RU')}</p>
+                    <button class="btn btn-sm btn-outline-danger w-100">Удалить</button>
                 </div>
-            </div>
-        </div>
-    `).join('');
+            </div>`;
+
+        // wire delete
+        col.querySelector('button').addEventListener('click', async () => {
+            if (!confirm('Удалить это фото?')) return;
+            const { error } = await supabase.storage.from('photos').remove([path]);
+            if (error) { showAlert('Ошибка при удалении: ' + error.message, 'danger'); return; }
+            showAlert('Фото удалено', 'success');
+            await loadPhotos();
+        });
+
+        grid.appendChild(col);
+    }
 }
 
 function deletePhoto(photoId) {
@@ -244,34 +235,31 @@ function deletePhoto(photoId) {
 }
 
 // === Profile Management ===
-function loadProfileData() {
-    document.getElementById('profileEmail').value = currentUser.email;
-    document.getElementById('profileFirstName').value = currentUser.firstName || '';
-    document.getElementById('profileLastName').value = currentUser.lastName || '';
-    document.getElementById('profileBio').value = currentUser.bio || '';
+async function loadProfileData() {
+    if (!currentUser) return;
+    // fetch fresh user metadata
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) { console.error(error); return; }
+    const meta = user.user_metadata || {};
+    document.getElementById('profileEmail').value = user.email || '';
+    document.getElementById('profileFirstName').value = meta.firstName || '';
+    document.getElementById('profileLastName').value = meta.lastName || '';
+    document.getElementById('profileBio').value = meta.bio || '';
 }
 
-function saveProfile() {
-    currentUser.firstName = document.getElementById('profileFirstName').value.trim();
-    currentUser.lastName = document.getElementById('profileLastName').value.trim();
-    currentUser.bio = document.getElementById('profileBio').value.trim();
+async function saveProfile() {
+    if (!currentUser) return;
+    const firstName = document.getElementById('profileFirstName').value.trim();
+    const lastName = document.getElementById('profileLastName').value.trim();
+    const bio = document.getElementById('profileBio').value.trim();
 
-    // Update users list
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
-    if (userIndex !== -1) {
-        users[userIndex] = currentUser;
-        localStorage.setItem('users', JSON.stringify(users));
-    }
+    const { data, error } = await supabase.auth.updateUser({ data: { firstName, lastName, bio } });
+    if (error) { showAlert('Ошибка сохранения профиля: ' + error.message, 'danger'); return; }
 
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    
-    const userName = currentUser.firstName || currentUser.email;
-    document.getElementById('navUserName').textContent = userName;
-
+    currentUser = data.user;
+    document.getElementById('navUserName').textContent = firstName || currentUser.email;
     const modal = bootstrap.Modal.getInstance(document.getElementById('profileModal'));
     if (modal) modal.hide();
-
     showAlert('Профиль обновлён!', 'success');
 }
 
