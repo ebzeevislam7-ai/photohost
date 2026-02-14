@@ -1,0 +1,25 @@
+# .gitignore for ASP.NET Core projects
+bin/
+obj/
+.vs/
+.env
+*.db
+*.sqlite
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pdb
+publish/
+wwwroot/uploads/
+.netlify/
+.vscode/
+.idea/
+**/appsettings.Development.json
+nuget.exe
+*.nupkg
+*.nuget.props
+*.nupkg
+*.snk
+.vscode/*
+**/*.log
