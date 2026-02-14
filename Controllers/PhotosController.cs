@@ -43,30 +43,45 @@ namespace PhotoHost.Controllers
         /// POST запрос: загружает файл изображения на сервер
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> Upload(IFormFile file)
+        public async Task<IActionResult> Upload(List<IFormFile> files)
         {
-            if (file == null || file.Length == 0)
+            if (files == null || files.Count == 0)
             {
-                ModelState.AddModelError("", "Выберите файл для загрузки");
+                TempData["Error"] = "Выберите файл(ы) для загрузки";
                 return RedirectToAction(nameof(Index));
             }
 
-            try
+            var uploaded = 0;
+            var errors = new List<string>();
+
+            foreach (var file in files)
             {
-                await _photoService.UploadAsync(file);
-                TempData["Success"] = "Фотография успешно загружена!";
-                _logger.LogInformation($"Файл {file.FileName} успешно загружен");
+                if (file == null || file.Length == 0)
+                    continue;
+
+                try
+                {
+                    await _photoService.UploadAsync(file);
+                    uploaded++;
+                    _logger.LogInformation($"Файл {file.FileName} успешно загружен");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    errors.Add($"{file.FileName}: {ex.Message}");
+                    _logger.LogWarning(ex, "Ошибка валидации при загрузке файла");
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{file.FileName}: ошибка при загрузке");
+                    _logger.LogError(ex, "Неожиданная ошибка при загрузке файла");
+                }
             }
-            catch (InvalidOperationException ex)
-            {
-                TempData["Error"] = ex.Message;
-                _logger.LogWarning(ex, "Ошибка валидации при загрузке файла");
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = "Произошла ошибка при загрузке файла";
-                _logger.LogError(ex, "Неожиданная ошибка при загрузке файла");
-            }
+
+            if (uploaded > 0)
+                TempData["Success"] = $"Успешно загружено {uploaded} файл(ов).";
+
+            if (errors.Any())
+                TempData["Error"] = string.Join("; ", errors);
 
             return RedirectToAction(nameof(Index));
         }
