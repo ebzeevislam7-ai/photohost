@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.git/
+.github/
+*.db
+wwwroot/uploads/
+node_modules/
+*.log
+publish/
+README.md
