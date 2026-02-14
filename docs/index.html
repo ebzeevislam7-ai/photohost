@@ -1,143 +1,160 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PhotoHost — Demo</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoHost - Фотохостинг</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-  </head>
-  <body class="bg-light">
-    <nav class="navbar navbar-expand-md navbar-dark bg-primary mb-4">
-      <div class="container">
-        <a class="navbar-brand" href="/">PhotoHost</a>
-        <div class="d-none d-md-block">
-          <a class="btn btn-outline-light btn-sm" href="https://github.com/ebzeevislam7-ai/photohost" target="_blank">Source</a>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav id="navbar" class="navbar navbar-expand-lg navbar-dark bg-primary mb-4" style="display:none;">
+        <div class="container" style="max-width:1100px;">
+            <a class="navbar-brand" href="#" onclick="location.reload()">📸 PhotoHost</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" id="navProfile" href="#" data-bs-toggle="modal" data-bs-target="#profileModal">👤 <span id="navUserName"></span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout(); return false;">Выход</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-      </div>
     </nav>
 
-    <main class="container">
-      <div class="row gy-4">
-        <div class="col-lg-5">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <h5 class="card-title">Upload photos (client-side demo)</h5>
-              <p class="card-text text-muted">Select photos to preview and store locally in your browser. This is a client-side demo — server uploads require the backend.</p>
+    <!-- Auth Forms -->
+    <div id="authContainer" class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <!-- Login Form -->
+                <div id="loginForm" class="card shadow-sm">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-4">Вход в PhotoHost</h2>
+                        <form onsubmit="handleLogin(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" id="loginEmail" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" id="loginPassword" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 mb-3">Войти</button>
+                            <p class="text-center">
+                                Нет аккаунта? <a href="#" onclick="toggleForms(); return false;">Зарегистрироваться</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
 
-              <div class="mb-3">
-                <input class="form-control" type="file" id="files" accept="image/*" multiple>
-              </div>
-
-              <div class="d-flex gap-2">
-                <button id="saveBtn" class="btn btn-primary">Save to browser</button>
-                <button id="clearBtn" class="btn btn-outline-secondary">Clear saved</button>
-              </div>
+                <!-- Register Form -->
+                <div id="registerForm" class="card shadow-sm" style="display:none;">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-4">Регистрация</h2>
+                        <form onsubmit="handleRegister(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Имя</label>
+                                <input type="text" id="regFirstName" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Фамилия</label>
+                                <input type="text" id="regLastName" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" id="regEmail" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Пароль (минимум 6 символов)</label>
+                                <input type="password" id="regPassword" class="form-control" minlength="6" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Подтвердить пароль</label>
+                                <input type="password" id="regPasswordConfirm" class="form-control" minlength="6" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 mb-3">Зарегистрироваться</button>
+                            <p class="text-center">
+                                Уже есть аккаунт? <a href="#" onclick="toggleForms(); return false;">Войти</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
             </div>
-          </div>
-
-          <div class="mt-3 text-muted small">To enable real uploads, deploy the ASP.NET backend from the repository.</div>
         </div>
+    </div>
 
-        <div class="col-lg-7">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <h5 class="card-title">Gallery</h5>
-              <div id="gallery" class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-3">
-                <!-- Thumbnails go here -->
-              </div>
+    <!-- Main App -->
+    <div id="appContainer" class="container-fluid" style="display:none;">
+        <div style="max-width:1100px; margin:0 auto;">
+            <!-- Alert Messages -->
+            <div id="alertContainer" class="mb-4"></div>
+
+            <!-- Upload Section -->
+            <div class="card mb-4 p-4">
+                <h5 class="mb-3">Загрузить фотографии</h5>
+                <form id="uploadForm" onsubmit="handleUpload(event)">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-lg-8">
+                            <label class="form-label">Выберите изображения (.jpg, .jpeg, .png)</label>
+                            <input class="form-control" type="file" id="fileInput" accept=".jpg,.jpeg,.png" multiple>
+                            <div class="preview-list d-flex mt-2" id="preview"></div>
+                        </div>
+                        <div class="col-lg-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">Загрузить</button>
+                        </div>
+                    </div>
+                </form>
             </div>
-          </div>
-        </div>
-      </div>
-    </main>
 
-    <footer class="footer mt-5 py-4 bg-white border-top">
-      <div class="container text-center small text-muted">Hosted on GitHub Pages — demo only. See the repo: <a href="https://github.com/ebzeevislam7-ai/photohost">photohost</a></div>
-    </footer>
+            <!-- Photos Grid -->
+            <div>
+                <h4 class="mb-4">Мои фотографии (<span id="photoCount">0</span>)</h4>
+                <div id="photoGrid" class="row row-cols-1 row-cols-md-3 g-4 photo-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Мой профиль</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="profileEmail" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Имя</label>
+                        <input type="text" id="profileFirstName" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Фамилия</label>
+                        <input type="text" id="profileLastName" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">О себе</label>
+                        <textarea id="profileBio" class="form-control" rows="3" placeholder="Расскажите немного о себе..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" onclick="saveProfile()">Сохранить изменения</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      // Simple client-side gallery with localStorage persistence
-      const filesInput = document.getElementById('files');
-      const gallery = document.getElementById('gallery');
-      const saveBtn = document.getElementById('saveBtn');
-      const clearBtn = document.getElementById('clearBtn');
-
-      const STORAGE_KEY = 'photohost_demo_images_v1';
-
-      function renderGallery(items) {
-        gallery.innerHTML = '';
-        if (!items || items.length === 0) {
-          gallery.innerHTML = '<div class="col-12 text-muted">No images yet — select files to preview.</div>';
-          return;
-        }
-        items.forEach((dataUrl, idx) => {
-          const col = document.createElement('div');
-          col.className = 'col';
-          col.innerHTML = `
-            <div class="card h-100">
-              <img src="${dataUrl}" class="card-img-top img-cover" alt="photo-${idx}">
-              <div class="card-body p-2 text-center">
-                <button class="btn btn-sm btn-outline-danger remove-btn">Remove</button>
-              </div>
-            </div>`;
-          gallery.appendChild(col);
-          col.querySelector('.remove-btn').addEventListener('click', () => {
-            items.splice(idx, 1);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-            renderGallery(items);
-          });
-        });
-      }
-
-      function loadSaved() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          return raw ? JSON.parse(raw) : [];
-        } catch (e) { return []; }
-      }
-
-      const saved = loadSaved();
-      renderGallery(saved);
-
-      filesInput.addEventListener('change', async (e) => {
-        const files = Array.from(e.target.files || []);
-        if (!files.length) return;
-        const dataUrls = await Promise.all(files.map(f => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result);
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        })));
-        // show previews (not yet saved)
-        renderGallery(dataUrls.concat(saved));
-      });
-
-      saveBtn.addEventListener('click', async () => {
-        const files = Array.from(filesInput.files || []);
-        if (!files.length) {
-          alert('Select files first (they will be saved in your browser storage).');
-          return;
-        }
-        const dataUrls = await Promise.all(files.map(f => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result);
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        })));
-        const cur = loadSaved();
-        const merged = dataUrls.concat(cur).slice(0, 100); // limit count
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        renderGallery(merged);
-        filesInput.value = '';
-      });
-
-      clearBtn.addEventListener('click', () => {
-        if (!confirm('Clear all saved images from this browser?')) return;
-        localStorage.removeItem(STORAGE_KEY);
-        renderGallery([]);
-      });
-    </script>
-  </body>
+    <script src="app.js"></script>
+</body>
 </html>
