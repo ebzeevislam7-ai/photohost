@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Photohost</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>📸 Photohost (Static preview)</h1>
+      <p>Статическая версия главной страницы — для GitHub Pages.</p>
+    </header>
+
+    <section class="upload-section">
+      <h2>Загрузить фотографию</h2>
+      <form method="post" enctype="multipart/form-data">
+        <label>Выберите изображение (.jpg, .jpeg, .png)</label>
+        <input type="file" disabled>
+        <button disabled>Загрузить</button>
+      </form>
+      <p class="note">Здесь показан только интерфейс. Полная функциональность требует серверной части.</p>
+    </section>
+
+    <section class="photos-section">
+      <h2>Примеры фотографий</h2>
+      <div class="photos-grid">
+        <div class="photo-card"><img src="https://via.placeholder.com/400x300?text=Photo+1" alt="Photo 1"><div class="photo-info"><div class="photo-name">photo1.jpg</div><div class="photo-date">01.01.2026 12:00</div></div></div>
+        <div class="photo-card"><img src="https://via.placeholder.com/400x300?text=Photo+2" alt="Photo 2"><div class="photo-info"><div class="photo-name">photo2.jpg</div><div class="photo-date">02.01.2026 14:30</div></div></div>
+        <div class="photo-card"><img src="https://via.placeholder.com/400x300?text=Photo+3" alt="Photo 3"><div class="photo-info"><div class="photo-name">photo3.jpg</div><div class="photo-date">03.01.2026 09:10</div></div></div>
+      </div>
+    </section>
+
+    <footer>
+      <p>Серверная версия доступна в репозитории — разверните приложение отдельно для загрузки/хранения фотографий.</p>
+    </footer>
+  </main>
+</body>
+</html>
