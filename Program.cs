@@ -2,7 +2,9 @@
 // Точка входа приложения, регистрация сервисов и middleware
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using PhotoHost.Data;
+using PhotoHost.Models;
 using PhotoHost.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Data Source=photohost.db"));
+
+// Регистрируем Identity
+builder.Services.AddIdentity<AppUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
+
+// Конфигурация Identity
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 6;
+});
 
 // Регистрируем IPhotoService
 builder.Services.AddScoped<IPhotoService, PhotoService>();
@@ -48,6 +65,8 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// Добавляем middleware для аутентификации и авторизации
+app.UseAuthentication();
 app.UseAuthorization();
 
 // ===== РОУТИНГ =====

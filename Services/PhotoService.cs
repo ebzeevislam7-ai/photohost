@@ -29,11 +29,14 @@ namespace PhotoHost.Services
         /// <summary>
         /// Загружает файл изображения с проверкой расширения, сохраняет и добавляет в БД
         /// </summary>
-        public async Task<Photo> UploadAsync(IFormFile file)
+        public async Task<Photo> UploadAsync(IFormFile file, string userId)
         {
             // Проверка наличия файла
             if (file == null || file.Length == 0)
                 throw new ArgumentException("Файл не выбран или пуст", nameof(file));
+
+            if (string.IsNullOrEmpty(userId))
+                throw new ArgumentException("UserId не может быть пусто", nameof(userId));
 
             // Получаем расширение файла
             var extension = Path.GetExtension(file.FileName).ToLower();
@@ -76,7 +79,8 @@ namespace PhotoHost.Services
                 Id = Guid.NewGuid(),
                 FileName = file.FileName,
                 Path = $"/{UploadFolder}/{uniqueFileName}",
-                UploadDate = DateTime.UtcNow
+                UploadDate = DateTime.UtcNow,
+                UserId = userId
             };
 
             // Добавляем запись в БД
@@ -84,6 +88,17 @@ namespace PhotoHost.Services
             await _context.SaveChangesAsync();
 
             return photo;
+        }
+
+        /// <summary>
+        /// Получает все фотографии пользователя из БД
+        /// </summary>
+        public async Task<List<Photo>> GetUserPhotosAsync(string userId)
+        {
+            return await _context.Photos
+                .Where(p => p.UserId == userId)
+                .OrderByDescending(p => p.UploadDate)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -99,12 +114,15 @@ namespace PhotoHost.Services
         /// <summary>
         /// Удаляет фотографию по ID (удаляет файл и запись из БД)
         /// </summary>
-        public async Task DeletePhotoAsync(Guid photoId)
+        public async Task DeletePhotoAsync(Guid photoId, string userId)
         {
             var photo = await _context.Photos.FindAsync(photoId);
 
             if (photo == null)
                 throw new InvalidOperationException($"Фотография с ID {photoId} не найдена");
+
+            if (photo.UserId != userId)
+                throw new UnauthorizedAccessException("Вы не можете удалять фото других пользователей");
 
             try
             {
