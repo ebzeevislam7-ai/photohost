@@ -18,6 +18,14 @@ body {
   min-height: 100vh;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Ensure auth card doesn't become too narrow on large screens */
+.card .card-body {
+  width: 100%;
+  max-width: 760px;
 }
 
 .card {
