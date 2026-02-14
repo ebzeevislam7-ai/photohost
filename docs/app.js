@@ -38,7 +38,8 @@ function toggleForms() {
 }
 
 function showAuth() {
-    document.getElementById('authContainer').style.display = 'block';
+    // keep the auth container as flex so centering and responsive sizing work
+    document.getElementById('authContainer').style.display = 'flex';
     document.getElementById('appContainer').style.display = 'none';
     document.getElementById('navbar').style.display = 'none';
     document.getElementById('loginForm').style.display = 'block';
