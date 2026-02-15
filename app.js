@@ -2,13 +2,39 @@
 const SUPABASE_URL = 'https://yinsvtpftqprixmecjyl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpbnN2dHBmdHFwcml4bWVjanlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTc5MzcsImV4cCI6MjA4NjY3MzkzN30.3mYO5Kceea-K7u-4QW4UlskCnxyx4KAnFfuzcrUXimc';
 
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase - wait for library to load from unpkg
+let supabase = null;
+
+function initSupabase() {
+    if (!supabase && typeof window.supabase !== 'undefined') {
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase initialized');
+            initApp();
+        } catch (e) {
+            console.error('Supabase init error:', e);
+        }
+    }
+}
+
+// Wait for library to load
+const supabaseCheck = setInterval(() => {
+    if (typeof window.supabase !== 'undefined') {
+        clearInterval(supabaseCheck);
+        initSupabase();
+    }
+}, 50);
 
 // === App State ===
 let currentUser = null;
 
 // === Initialization ===
-document.addEventListener('DOMContentLoaded', async function() {
+async function initApp() {
+    if (!supabase) {
+        console.error('Supabase not initialized');
+        return;
+    }
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
         currentUser = user;
@@ -27,6 +53,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             showAuth();
         }
     });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (supabase) {
+        initApp();
+    }
 });
 
 // === UI Toggle ===
