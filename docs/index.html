@@ -36,7 +36,7 @@
                 <div id="loginForm" class="card shadow-sm">
                     <div class="card-body">
                         <h2 class="card-title text-center mb-4">Вход в PhotoHost</h2>
-                        <form onsubmit="handleLogin(event)">
+                        <form id="loginFormElement">
                             <div class="mb-3">
                                 <label class="form-label">Email</label>
                                 <input type="email" id="loginEmail" class="form-control" required>
@@ -45,7 +45,7 @@
                                 <label class="form-label">Пароль</label>
                                 <input type="password" id="loginPassword" class="form-control" required>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100 mb-3">Войти</button>
+                            <button type="button" class="btn btn-primary w-100 mb-3" onclick="handleLogin()">Войти</button>
                             <p class="text-center">
                                 Нет аккаунта? <a href="#" onclick="toggleForms(); return false;">Зарегистрироваться</a>
                             </p>
@@ -57,7 +57,7 @@
                 <div id="registerForm" class="card shadow-sm" style="display:none;">
                     <div class="card-body">
                         <h2 class="card-title text-center mb-4">Регистрация</h2>
-                        <form onsubmit="handleRegister(event)">
+                        <form id="registerFormElement">
                             <div class="mb-3">
                                 <label class="form-label">Имя</label>
                                 <input type="text" id="regFirstName" class="form-control" required>
@@ -78,6 +78,7 @@
                                 <label class="form-label">Подтвердить пароль</label>
                                 <input type="password" id="regPasswordConfirm" class="form-control" minlength="6" required>
                             </div>
+                            <button type="button" class="btn btn-success w-100 mb-3" onclick="handleRegister()">Зарегистрироваться</button>
                             <button type="submit" class="btn btn-success w-100 mb-3">Зарегистрироваться</button>
                             <p class="text-center">
                                 Уже есть аккаунт? <a href="#" onclick="toggleForms(); return false;">Войти</a>
@@ -156,6 +157,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=2"></script>
+    <script src="app.js?v=3"></script>
 </body>
 </html>
