@@ -9,19 +9,30 @@ function initSupabase() {
     if (!supabase && typeof window.supabase !== 'undefined') {
         try {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('Supabase initialized');
+            console.log('✓ Supabase initialized successfully');
             initApp();
+            return true;
         } catch (e) {
-            console.error('Supabase init error:', e);
+            console.error('✗ Supabase init error:', e);
+            return false;
         }
     }
+    return supabase !== null;
 }
 
 // Wait for library to load
+let loadAttempts = 0;
 const supabaseCheck = setInterval(() => {
+    loadAttempts++;
+    console.log(`Checking for Supabase (attempt ${loadAttempts})...`);
+    
     if (typeof window.supabase !== 'undefined') {
+        console.log('✓ Supabase library loaded from unpkg');
         clearInterval(supabaseCheck);
         initSupabase();
+    } else if (loadAttempts > 200) {
+        clearInterval(supabaseCheck);
+        console.error('✗ Supabase library failed to load after 10 seconds');
     }
 }, 50);
 
@@ -109,6 +120,11 @@ function showAlert(message, type = 'success') {
 // === Registration & Login ===
 async function handleRegister(event) {
     event.preventDefault();
+    
+    if (!supabase) {
+        showAlert('Система загружается, подождите...', 'warning');
+        return;
+    }
 
     const firstName = document.getElementById('regFirstName').value.trim();
     const lastName = document.getElementById('regLastName').value.trim();
@@ -134,12 +150,25 @@ async function handleRegister(event) {
         return;
     }
 
+    // Clear form
+    document.getElementById('regFirstName').value = '';
+    document.getElementById('regLastName').value = '';
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('regPasswordConfirm').value = '';
+
     // Supabase sends confirmation email depending on your project settings.
     showAlert('Регистрация выполнена. Подтвердите Email, если требуется.', 'success');
 }
 
 async function handleLogin(event) {
     event.preventDefault();
+    
+    if (!supabase) {
+        showAlert('Система загружается, подождите...', 'warning');
+        return;
+    }
+    
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
@@ -152,7 +181,9 @@ async function handleLogin(event) {
 }
 
 async function logout() {
-    await supabase.auth.signOut();
+    if (supabase) {
+        await supabase.auth.signOut();
+    }
     currentUser = null;
     showAuth();
     showAlert('Вы вышли из аккаунта', 'info');
@@ -161,6 +192,7 @@ async function logout() {
 // === Photos Management ===
 async function handleUpload(event) {
     event.preventDefault();
+    if (!supabase) { showAlert('Система загружается, подождите...', 'warning'); return; }
     if (!currentUser) { showAlert('Сначала войдите в систему', 'warning'); return; }
     const files = document.getElementById('fileInput').files;
     if (files.length === 0) { showAlert('Выберите файлы для загрузки', 'warning'); return; }
