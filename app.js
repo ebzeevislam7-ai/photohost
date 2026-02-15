@@ -42,20 +42,24 @@ let currentUser = null;
 // === Initialization ===
 async function initApp() {
     if (!supabaseClient) {
-        console.error('Supabase not initialized');
+        console.error('✗ Supabase not initialized');
         return;
     }
     
+    console.log('Initializing app...');
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
+        console.log('✓ User found:', user.email);
         currentUser = user;
         showApp();
     } else {
+        console.log('No user session found, showing auth');
         showAuth();
     }
 
     // react to auth changes
     supabaseClient.auth.onAuthStateChange((_event, session) => {
+        console.log('Auth state changed:', _event, session?.user?.email);
         if (session?.user) {
             currentUser = session.user;
             showApp();
@@ -81,6 +85,7 @@ function toggleForms() {
 }
 
 function showAuth() {
+    console.log('Showing auth screen');
     // keep the auth container as flex so centering and responsive sizing work
     document.getElementById('authContainer').style.display = 'flex';
     document.getElementById('appContainer').style.display = 'none';
@@ -90,6 +95,7 @@ function showAuth() {
 }
 
 function showApp() {
+    console.log('Showing app screen for user:', currentUser?.email);
     document.getElementById('authContainer').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
     document.getElementById('navbar').style.display = 'block';
@@ -103,13 +109,19 @@ function showApp() {
 
 // === Alert Messages ===
 function showAlert(message, type = 'success') {
+    console.log(`[${type.toUpperCase()}]`, message);
     const alertHTML = `
         <div class="alert alert-${type} alert-dismissible fade show" role="alert">
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    document.getElementById('alertContainer').innerHTML = alertHTML;
+    const container = document.getElementById('alertContainer');
+    if (container) {
+        container.innerHTML = alertHTML;
+    } else {
+        console.warn('Alert container not found');
+    }
     
     setTimeout(() => {
         const alert = document.querySelector('.alert');
@@ -120,8 +132,10 @@ function showAlert(message, type = 'success') {
 // === Registration & Login ===
 async function handleRegister(event) {
     event.preventDefault();
+    console.log('✓ handleRegister triggered');
     
     if (!supabaseClient) {
+        console.warn('⚠ Supabase client not ready');
         showAlert('Система загружается, подождите...', 'warning');
         return;
     }
@@ -132,6 +146,8 @@ async function handleRegister(event) {
     const password = document.getElementById('regPassword').value;
     const passwordConfirm = document.getElementById('regPasswordConfirm').value;
 
+    console.log('Registering:', { firstName, lastName, email });
+
     if (!firstName || !lastName || !email || !password) {
         showAlert('Заполните все поля', 'danger');
         return;
@@ -139,32 +155,42 @@ async function handleRegister(event) {
     if (password !== passwordConfirm) { showAlert('Пароли не совпадают', 'danger'); return; }
     if (password.length < 6) { showAlert('Пароль должен быть минимум 6 символов', 'danger'); return; }
 
-    const { data, error } = await supabaseClient.auth.signUp({
-        email,
-        password,
-        options: { data: { firstName, lastName, bio: '' } }
-    });
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: { data: { firstName, lastName, bio: '' } }
+        });
 
-    if (error) {
-        showAlert(error.message, 'danger');
-        return;
+        if (error) {
+            console.error('Registration error:', error);
+            showAlert(error.message, 'danger');
+            return;
+        }
+
+        console.log('✓ Registration successful');
+
+        // Clear form
+        document.getElementById('regFirstName').value = '';
+        document.getElementById('regLastName').value = '';
+        document.getElementById('regEmail').value = '';
+        document.getElementById('regPassword').value = '';
+        document.getElementById('regPasswordConfirm').value = '';
+
+        // Supabase sends confirmation email depending on your project settings.
+        showAlert('Регистрация выполнена. Подтвердите Email, если требуется.', 'success');
+    } catch (e) {
+        console.error('✗ Registration exception:', e);
+        showAlert('Ошибка регистрации: ' + e.message, 'danger');
     }
-
-    // Clear form
-    document.getElementById('regFirstName').value = '';
-    document.getElementById('regLastName').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regPasswordConfirm').value = '';
-
-    // Supabase sends confirmation email depending on your project settings.
-    showAlert('Регистрация выполнена. Подтвердите Email, если требуется.', 'success');
 }
 
 async function handleLogin(event) {
     event.preventDefault();
+    console.log('✓ handleLogin triggered');
     
     if (!supabaseClient) {
+        console.warn('⚠ Supabase client not ready');
         showAlert('Система загружается, подождите...', 'warning');
         return;
     }
@@ -172,12 +198,24 @@ async function handleLogin(event) {
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) { showAlert(error.message, 'danger'); return; }
+    console.log('Logging in:', { email });
 
-    currentUser = data.user;
-    showAlert(`Добро пожаловать, ${currentUser.user_metadata?.firstName || currentUser.email}!`, 'success');
-    showApp();
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) { 
+            console.error('Login error:', error);
+            showAlert(error.message, 'danger'); 
+            return; 
+        }
+
+        console.log('✓ Login successful');
+        currentUser = data.user;
+        showAlert(`Добро пожаловать, ${currentUser.user_metadata?.firstName || currentUser.email}!`, 'success');
+        showApp();
+    } catch (e) {
+        console.error('✗ Login exception:', e);
+        showAlert('Ошибка входа: ' + e.message, 'danger');
+    }
 }
 
 async function logout() {
