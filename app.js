@@ -3,12 +3,12 @@ const SUPABASE_URL = 'https://yinsvtpftqprixmecjyl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpbnN2dHBmdHFwcml4bWVjanlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTc5MzcsImV4cCI6MjA4NjY3MzkzN30.3mYO5Kceea-K7u-4QW4UlskCnxyx4KAnFfuzcrUXimc';
 
 // Initialize Supabase - wait for library to load from unpkg
-let supabase = null;
+let supabaseClient = null;
 
 function initSupabase() {
-    if (!supabase && typeof window.supabase !== 'undefined') {
+    if (!supabaseClient && typeof window.supabase !== 'undefined') {
         try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             console.log('✓ Supabase initialized successfully');
             initApp();
             return true;
@@ -17,7 +17,7 @@ function initSupabase() {
             return false;
         }
     }
-    return supabase !== null;
+    return supabaseClient !== null;
 }
 
 // Wait for library to load
@@ -41,12 +41,12 @@ let currentUser = null;
 
 // === Initialization ===
 async function initApp() {
-    if (!supabase) {
+    if (!supabaseClient) {
         console.error('Supabase not initialized');
         return;
     }
     
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
         currentUser = user;
         showApp();
@@ -55,7 +55,7 @@ async function initApp() {
     }
 
     // react to auth changes
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
             currentUser = session.user;
             showApp();
@@ -67,7 +67,7 @@ async function initApp() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (supabase) {
+    if (supabaseClient) {
         initApp();
     }
 });
@@ -121,7 +121,7 @@ function showAlert(message, type = 'success') {
 async function handleRegister(event) {
     event.preventDefault();
     
-    if (!supabase) {
+    if (!supabaseClient) {
         showAlert('Система загружается, подождите...', 'warning');
         return;
     }
@@ -139,7 +139,7 @@ async function handleRegister(event) {
     if (password !== passwordConfirm) { showAlert('Пароли не совпадают', 'danger'); return; }
     if (password.length < 6) { showAlert('Пароль должен быть минимум 6 символов', 'danger'); return; }
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: { data: { firstName, lastName, bio: '' } }
@@ -164,7 +164,7 @@ async function handleRegister(event) {
 async function handleLogin(event) {
     event.preventDefault();
     
-    if (!supabase) {
+    if (!supabaseClient) {
         showAlert('Система загружается, подождите...', 'warning');
         return;
     }
@@ -172,7 +172,7 @@ async function handleLogin(event) {
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) { showAlert(error.message, 'danger'); return; }
 
     currentUser = data.user;
@@ -181,8 +181,8 @@ async function handleLogin(event) {
 }
 
 async function logout() {
-    if (supabase) {
-        await supabase.auth.signOut();
+    if (supabaseClient) {
+        await supabaseClient.auth.signOut();
     }
     currentUser = null;
     showAuth();
@@ -192,7 +192,7 @@ async function logout() {
 // === Photos Management ===
 async function handleUpload(event) {
     event.preventDefault();
-    if (!supabase) { showAlert('Система загружается, подождите...', 'warning'); return; }
+    if (!supabaseClient) { showAlert('Система загружается, подождите...', 'warning'); return; }
     if (!currentUser) { showAlert('Сначала войдите в систему', 'warning'); return; }
     const files = document.getElementById('fileInput').files;
     if (files.length === 0) { showAlert('Выберите файлы для загрузки', 'warning'); return; }
@@ -203,14 +203,14 @@ async function handleUpload(event) {
         const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const path = `${currentUser.id}/${fileName}`;
 
-        const { error } = await supabase.storage.from('photos').upload(path, file, { cacheControl: '3600', upsert: false });
+        const { error } = await supabaseClient.storage.from('photos').upload(path, file, { cacheControl: '3600', upsert: false });
         if (error) {
             console.error('Upload error', error);
             showAlert(`Ошибка загрузки ${file.name}: ${error.message}`, 'danger');
             continue;
         }
 
-        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+        const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(path);
         uploaded.push({ fileName: file.name, url: urlData.publicUrl, path });
     }
 
@@ -243,7 +243,7 @@ async function loadPhotos() {
     const grid = document.getElementById('photoGrid');
 
     // list files in user's folder
-    const { data, error } = await supabase.storage.from('photos').list(currentUser.id, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+    const { data, error } = await supabaseClient.storage.from('photos').list(currentUser.id, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
     if (error) {
         console.error('List error', error);
         grid.innerHTML = '<div class="col-12"><div class="alert alert-light text-center">Не удалось загрузить список фото. Убедитесь, что бакет "photos" создан и публичен.</div></div>';
@@ -261,7 +261,7 @@ async function loadPhotos() {
     grid.innerHTML = '';
     for (const file of photos) {
         const path = `${currentUser.id}/${file.name}`;
-        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+        const { data: urlData } = supabaseClient.storage.from('photos').getPublicUrl(path);
         const publicUrl = urlData.publicUrl;
 
         const col = document.createElement('div');
@@ -279,7 +279,7 @@ async function loadPhotos() {
         // wire delete
         col.querySelector('button').addEventListener('click', async () => {
             if (!confirm('Удалить это фото?')) return;
-            const { error } = await supabase.storage.from('photos').remove([path]);
+            const { error } = await supabaseClient.storage.from('photos').remove([path]);
             if (error) { showAlert('Ошибка при удалении: ' + error.message, 'danger'); return; }
             showAlert('Фото удалено', 'success');
             await loadPhotos();
@@ -303,7 +303,7 @@ function deletePhoto(photoId) {
 async function loadProfileData() {
     if (!currentUser) return;
     // fetch fresh user metadata
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabaseClient.auth.getUser();
     if (error) { console.error(error); return; }
     const meta = user.user_metadata || {};
     document.getElementById('profileEmail').value = user.email || '';
@@ -318,7 +318,7 @@ async function saveProfile() {
     const lastName = document.getElementById('profileLastName').value.trim();
     const bio = document.getElementById('profileBio').value.trim();
 
-    const { data, error } = await supabase.auth.updateUser({ data: { firstName, lastName, bio } });
+    const { data, error } = await supabaseClient.auth.updateUser({ data: { firstName, lastName, bio } });
     if (error) { showAlert('Ошибка сохранения профиля: ' + error.message, 'danger'); return; }
 
     currentUser = data.user;
